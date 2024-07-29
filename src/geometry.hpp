@@ -2,6 +2,4 @@
 #define GEO
 
 
-void set();
-
 #endif
