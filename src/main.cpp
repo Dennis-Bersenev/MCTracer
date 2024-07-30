@@ -63,8 +63,8 @@ void shade_pixel(int ns, int i, int j, int nx, int ny, camera * cam, const world
     ray r;
     for (int s = 0; s < ns; s++)
     {
-        u = double(i) / double(nx);
-        v = double(j) / double(ny);
+        u = double(i + random_double()) / double(nx);
+        v = double(j + random_double()) / double(ny);
 
         r = cam->get_ray(u, v);
         col += colour(r, scene);
@@ -116,20 +116,17 @@ int main() {
     
     
     int sd_out;
-    int img_fd = overwrite_sdout("out/test_img_new.ppm", &sd_out);
+    int img_fd = overwrite_sdout("out/test_img.ppm", &sd_out);
 
     // Scene setup
     world sphere_world;
     sphere_world.add(std::make_shared<sphere>(vec3(0,0,-1), 0.5));
     sphere_world.add(std::make_shared<sphere>(vec3(0,-100.5,-1), 100));
-    // geometry * s = new sphere(vec3(0, 0, -1), 1);
 
     // Rendering pass
     render(720, 640, 20, sphere_world);
 
     restore_sdout(img_fd, &sd_out);
-
-    // delete s;
 
     auto end = std::chrono::high_resolution_clock::now();
 
