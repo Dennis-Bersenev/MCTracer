@@ -1,30 +1,40 @@
 # include <stdio.h>
 # include <memory>
 # include <limits>
-    
+# include <thread>
+# include <mutex>
+# include <chrono>
+
 # include "utils.hpp"
 # include "geometry.hpp"
 # include "camera.hpp"
 # include "sphere.hpp"
+
+std::mutex colour_mu;
 
 /**
 * Recursive function responsible for producing final colour of each sample, at each step attenuating reflected colours.
 * @param r - initially the sample ray through the pixel whose final colour is to be computed, subsequent calls being invoked
 *            on scattered rays from valid intersections.
 * @param world - container for all the objects in the scene.
-* @param depth - specifies the ray depth; how many times the ray has bounced about the scene..
+* @param depth - specifies the ray depth; how many times the ray has bounced about the scene.
+* @param res - holds the final calculated colour for this pass.
 * @return - final colour of the sample.
 */
-vec3 colour(const ray& r, geometry * obj, int depth)
+void colour(const ray& r, geometry * obj, vec3 * res)
 {
+    colour_mu.lock();
     hit_record rec;
     
     if (obj->hit(r, 0.0001, std::numeric_limits<float>::max(), rec))
     {
-        return vec3(255, 0, 0);   
+        *res += vec3(255, 0, 0);   
     }
-    //Background colour
-    return vec3(0, 255, 0);
+    else {
+        //Background colour
+        *res += vec3(0, 255, 0);
+    }
+    colour_mu.unlock();
 }
 
 /*
@@ -44,7 +54,7 @@ void render(int nx, int ny, int ns, geometry * obj)
     // int b = 255;
 
     //Cam setup
-    vec3 lookfrom(0, 0, 10);
+    vec3 lookfrom(0, 0, 2);
     vec3 lookat(0, 0, -1);
 
     camera cam(lookfrom, lookat, vec3(0, 1, 0), 45, double(nx) / double(ny));
@@ -57,11 +67,23 @@ void render(int nx, int ny, int ns, geometry * obj)
     std::cout << "P3\n" << nx << " " << ny << "\n255\n";
     for (int j = ny - 1; j >= 0; j--) {
         for (int i = 0; i < nx; i++) {
-            u = double(i) / double(nx);
-            v = double(j) / double(ny);
+            // TODO: add multithreading right here, one thread per sample then collect all samples and sum!
+            col = vec3(0, 0, 0);
+            std::vector<std::thread> samples;
+            for (int s = 0; s < ns; s++)
+            {
+                u = double(i) / double(nx);
+                v = double(j) / double(ny);
 
-            r = cam.get_ray(u, v);
-            col = colour(r, obj, 0);
+                r = cam.get_ray(u, v);
+                samples.push_back(std::thread(colour, r, obj, &col));
+                
+            }
+            for (int s = 0; s < ns; s++) {
+                samples[s].join();
+            }
+            col /= ns;
+            
             std::cout << col.r() << " " << col.g() << " " << col.b() << "\n";
         }
     }
@@ -74,17 +96,27 @@ void render(int nx, int ny, int ns, geometry * obj)
 }
 
 int main() {
+    // timing execution
+    auto start = std::chrono::high_resolution_clock::now();
+    
     
     int sd_out;
     int img_fd = overwrite_sdout("out/test_img_new.ppm", &sd_out);
     geometry * s = new sphere(vec3(0, 0, -1), 1);
 
     // Rendering pass
-    render(200, 100, 20, s);
+    render(480, 240, 20, s);
 
     restore_sdout(img_fd, &sd_out);
 
     delete s;
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Logging exec time
+    std::chrono::duration<double> duration = end - start;
+    std::cout << "Time taken to render: " << duration.count() << " seconds" << std::endl;
+
 
     return 0;
 }
