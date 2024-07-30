@@ -9,6 +9,7 @@
 # include "geometry.hpp"
 # include "camera.hpp"
 # include "sphere.hpp"
+# include "world.hpp"
 
 // std::mutex mu;
 
@@ -20,12 +21,12 @@
 * @param depth - specifies the ray depth; how many times the ray has bounced about the scene.
 * @return - final colour of the sample.
 */
-vec3 colour(const ray& r, geometry * obj)
+vec3 colour(const ray& r, const world& scene)
 {
     vec3 res = vec3(0, 0, 0);
     hit_record rec;
     
-    if (obj->hit(r, 0.0001, std::numeric_limits<float>::max(), rec))
+    if (scene.hit(r, 0.0001, std::numeric_limits<float>::max(), rec))
     {
         // Using sphere norm to colour the ray!
         vec3 unit_norm = unit_vector(rec.normal);
@@ -36,7 +37,10 @@ vec3 colour(const ray& r, geometry * obj)
     }
     else {
         //Background colour
-        res += vec3(0, 255, 0);
+        vec3 unit_direction = unit_vector(r.direction());
+        auto a = 0.5*(unit_direction.y() + 1.0);
+        return 255*((1.0-a)*vec3(1.0, 1.0, 1.0) + a*vec3(0.5, 0.7, 1.0));
+        
     }
     return res;
 }
@@ -53,7 +57,7 @@ vec3 colour(const ray& r, geometry * obj)
 # @param scene - programmatic description of the scene.
 * @return - final colour of the sample.
 */
-void shade_pixel(int ns, int i, int j, int nx, int ny, camera * cam, geometry * scene) {
+void shade_pixel(int ns, int i, int j, int nx, int ny, camera * cam, const world& scene) {
     vec3 col = vec3(0, 0, 0);
     double u, v;
     ray r;
@@ -81,7 +85,7 @@ IN:
 OUT:
     the image given by fd post-render.
 */
-void render(int nx, int ny, int ns, geometry * scene)
+void render(int nx, int ny, int ns, const world& scene)
 {
     //Cam setup
     vec3 lookfrom(0, 0, 2);
@@ -113,14 +117,19 @@ int main() {
     
     int sd_out;
     int img_fd = overwrite_sdout("out/test_img_new.ppm", &sd_out);
-    geometry * s = new sphere(vec3(0, 0, -1), 1);
+
+    // Scene setup
+    world sphere_world;
+    sphere_world.add(std::make_shared<sphere>(vec3(0,0,-1), 0.5));
+    sphere_world.add(std::make_shared<sphere>(vec3(0,-100.5,-1), 100));
+    // geometry * s = new sphere(vec3(0, 0, -1), 1);
 
     // Rendering pass
-    render(720, 640, 20, s);
+    render(720, 640, 20, sphere_world);
 
     restore_sdout(img_fd, &sd_out);
 
-    delete s;
+    // delete s;
 
     auto end = std::chrono::high_resolution_clock::now();
 
