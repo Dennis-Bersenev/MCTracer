@@ -27,7 +27,12 @@ vec3 colour(const ray& r, geometry * obj)
     
     if (obj->hit(r, 0.0001, std::numeric_limits<float>::max(), rec))
     {
-        res += vec3(255, 0, 0);   
+        // Using sphere norm to colour the ray!
+        vec3 unit_norm = unit_vector(rec.normal);
+        vec3 norm_remap = vec3((unit_norm.x() + 1.0)/2.0, (unit_norm.y() + 1.0)/2.0, (unit_norm.z() + 1.0)/2.0);
+        vec3 norm_col = 255 * norm_remap;
+
+        res += norm_col; 
     }
     else {
         //Background colour
