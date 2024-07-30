@@ -10,7 +10,7 @@
 # include "camera.hpp"
 # include "sphere.hpp"
 
-std::mutex mu;
+// std::mutex mu;
 
 /**
 * Recursive function responsible for producing final colour of each sample, at each step attenuating reflected colours.
@@ -63,9 +63,7 @@ void shade_pixel(int ns, int i, int j, int nx, int ny, camera * cam, geometry * 
     }
     col /= ns;
 
-    mu.lock();
     std::cout << col.r() << " " << col.g() << " " << col.b() << "\n";
-    mu.unlock();
 }
 
 
@@ -92,9 +90,7 @@ void render(int nx, int ny, int ns, geometry * scene)
     std::vector<std::thread> threads;
     for (int j = ny - 1; j >= 0; j--) {
         for (int i = 0; i < nx; i++) {
-            // TODO: add multithreading right here, one thread per sample then collect all samples and sum! If you INSTEAD thread per pixel you don't need locks!
-            threads.push_back(std::thread(shade_pixel, ns, i, j, nx, ny, &cam, scene));
-            // shade_pixel(ns, i, j, nx, ny, &cam, scene);
+            shade_pixel(ns, i, j, nx, ny, &cam, scene);
         }
     }
     for (auto &t : threads) {
